@@ -47,3 +47,31 @@ def get_available_mechanic(company_id, car_type):
     cursor.close()
     connection.close()
     return mechanic
+
+def update_mechanic_location(request_id, latitude, longitude):
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    sql = """
+    UPDATE service_requests
+    SET mechanic_latitude = %s, mechanic_longitude = %s
+    WHERE id = %s
+    """
+    cursor.execute(sql, (latitude, longitude, request_id))
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
+def get_mechanic_location(request_id):
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    sql = """
+    SELECT mechanic_latitude, mechanic_longitude
+    FROM service_requests
+    WHERE id = %s
+    """
+    cursor.execute(sql, (request_id,))
+    location = cursor.fetchone()
+    cursor.close()
+    connection.close()
+    return location  # returns (latitude, longitude) tuple or None

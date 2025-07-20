@@ -14,24 +14,26 @@ service_routes = Blueprint('service_routes', __name__)
 @service_routes.route('/api/service/request', methods=['POST'])
 def request_service():
     data = request.json
-    create_service_request(data)
 
-    mechanic = get_available_mechanic(data['company_id'], data['car_type'])
-    
+    # Step 1: Find the nearest available mechanic based on car type and location
+    mechanic = get_available_mechanic(data['car_type'], data['service_lat'], data['service_lng'])
+
     if not mechanic:
         return jsonify({'message': 'No available mechanic found'}), 404
 
-    # Assign mechanic
-    request_id = get_last_inserted_request_id()  # implement this or return ID from create
+    # Step 2: Create the service request (now with company_id from mechanic)
+    request_id = create_service_request(data, mechanic)  # this function should return the inserted request ID
+
+    # Step 3: Assign the mechanic to the request
     assign_mechanic_to_request(request_id, mechanic['id'])
 
+    # Step 4: Set mechanic as unavailable
     update_mechanic_availability(mechanic['id'], False)
 
     return jsonify({
         'message': 'Service request assigned',
         'mechanic': mechanic
     }), 200
-
 @service_routes.route('/api/mechanic/update-location', methods=['POST'])
 def update_location():
     data = request.json

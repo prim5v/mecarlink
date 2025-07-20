@@ -1,6 +1,7 @@
 from db_config import get_db_connection
+import math
 
-def create_service_request(data):
+def create_service_request(data, mechanic):
     connection = get_db_connection()
     cursor = connection.cursor()
     sql = """
@@ -10,7 +11,7 @@ def create_service_request(data):
     """
     cursor.execute(sql, (
         data['driver_id'],
-        data['company_id'],
+        mechanic['company_id'],
         data['car_type'],
         data['service_lat'],
         data['service_lng']
@@ -18,6 +19,7 @@ def create_service_request(data):
     connection.commit()
     cursor.close()
     connection.close()
+
 
 
 def assign_mechanic_to_request(request_id, mechanic_id):
@@ -34,19 +36,39 @@ def assign_mechanic_to_request(request_id, mechanic_id):
     connection.close()
 
 
-def get_available_mechanic(company_id, car_type):
+def get_available_mechanic(car_type, service_lat, service_lng):
     connection = get_db_connection()
-    cursor = connection.cursor()
+    cursor = connection.cursor(dictionary=True)
+
+    # Get all available mechanics who match the car type
     sql = """
-    SELECT * FROM mechanics 
-    WHERE company_id = %s AND is_available = 1 AND specialties LIKE %s
-    LIMIT 1
+    SELECT id, company_id, name, mechanic_latitude, mechanic_longitude, specialties
+    FROM mechanics
+    WHERE is_available = 1 AND specialties LIKE %s
     """
-    cursor.execute(sql, (company_id, f"%{car_type}%"))
-    mechanic = cursor.fetchone()
+    cursor.execute(sql, (f"%{car_type}%",))
+    mechanics = cursor.fetchall()
+
+    if not mechanics:
+        return None
+
+    # Find nearest mechanic based on simple distance (Haversine formula not used here for simplicity)
+    def calculate_distance(lat1, lng1, lat2, lng2):
+        return math.sqrt((lat1 - lat2)**2 + (lng1 - lng2)**2)
+
+    nearest_mechanic = min(
+        mechanics,
+        key=lambda mech: calculate_distance(
+            float(service_lat),
+            float(service_lng),
+            float(mech['mechanic_latitude']),
+            float(mech['mechanic_longitude'])
+        )
+    )
+
     cursor.close()
     connection.close()
-    return mechanic
+    return nearest_mechanic
 
 def update_mechanic_location(request_id, latitude, longitude):
     connection = get_db_connection()
